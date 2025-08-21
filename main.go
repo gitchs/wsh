@@ -220,8 +220,8 @@ func main() {
 			return
 		}
 		logrus.Debugf("send message %v", buf[:n])
-		if bytes.Equal(buf[:n], []byte{27, 91, 49, 53, 126}) {
-			// 预留F5，用来杀连接
+		if bytes.Equal(buf[:n], []byte{27, 91, 50, 52, 126}) {
+			// 预留F12，用来杀连接
 			c.Close()
 			break
 		}
