@@ -130,6 +130,10 @@ func runWSH(cmd *cobra.Command, args []string) {
 		term.Restore(int(os.Stdin.Fd()), oldState)
 		// 重置终端，模仿reset命令的行为
 		resetTerminal()
+
+		// 将日志重定向到console
+		logrus.SetOutput(os.Stdout)
+		logrus.Infof("wsh exited, terminal reset completed")
 	}()
 
 	// 记录最后发送消息的时间
@@ -158,6 +162,29 @@ func runWSH(cmd *cobra.Command, args []string) {
 				logrus.Debug("Window size changed, sending resize")
 				conn.ResizeTerm()
 				updateLastSendTime()
+			}
+		}
+	}()
+
+	// 启动终端resize监控
+	go func() {
+		ticker := time.NewTicker(1 * time.Second) // 每秒检查一次
+		defer ticker.Stop()
+
+		var lastCols, lastRows int
+
+		for range ticker.C {
+			cols, rows, err := term.GetSize(int(os.Stdout.Fd()))
+			if err != nil {
+				continue
+			}
+
+			// 如果终端大小发生变化，发送resize消息
+			if cols != lastCols || rows != lastRows {
+				logrus.Debugf("Terminal size changed: %dx%d -> %dx%d", lastCols, lastRows, cols, rows)
+				conn.SendJSON(wshutils.ResizeMsg{Type: "resize", Rows: rows, Cols: cols})
+				updateLastSendTime()
+				lastCols, lastRows = cols, rows
 			}
 		}
 	}()
